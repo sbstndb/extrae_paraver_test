@@ -1,0 +1,9 @@
+/build/
+*.prv
+*.pcf
+*.row
+*.mpit
+*.sym
+*.spawn
+*.cache
+*.swp
