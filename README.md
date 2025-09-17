@@ -64,6 +64,43 @@ Le dépôt inclut la procédure suivie pour compiler wxParaver 4.9.2 dans `~/pa
    export LD_LIBRARY_PATH=$HOME/paraver/lib/paraver-kernel:$LD_LIBRARY_PATH
    ```
 
+## Profilage de Samurai avec Extrae
+
+Étapes validées pour générer une trace Paraver sur l’exécutable MPI `finite-volume-advection-2d` du projet Samurai :
+
+1. Charger les dépendances via Spack :
+   ```bash
+   spack load samurai@0.26.1
+   spack load cli11/5
+   spack load extrae@4.2.3 ^openmpi
+   ```
+2. Compiler l’exemple avec MPI activé :
+   ```bash
+   cmake -S ~/sbstndbs/samurai -B ~/sbstndbs/samurai/build_extrae -DWITH_MPI=ON
+   cmake --build ~/sbstndbs/samurai/build_extrae --target finite-volume-advection-2d
+   ```
+3. Préparer la configuration Extrae (copie du template MPI fourni) :
+   ```bash
+   cp $(spack location -i extrae@4.2.3)/share/example/MPI/extrae.xml \
+      ~/sbstndbs/samurai/build_extrae/extrae.xml
+   ```
+4. Lancer l’exécutable sous Extrae (ici avec 4 rangs) :
+   ```bash
+   EXTRAE_HOME=$(spack location -i extrae@4.2.3)
+   source $EXTRAE_HOME/etc/extrae.sh
+   export EXTRAE_CONFIG_FILE=~/sbstndbs/samurai/build_extrae/extrae.xml
+   export EXTRAE_ON=1
+   mpirun -np 4 -x LD_PRELOAD=${EXTRAE_HOME}/lib/libmpitrace.so \
+       -x EXTRAE_CONFIG_FILE -x EXTRAE_ON \
+       ~/sbstndbs/samurai/build_extrae/demos/FiniteVolume/finite-volume-advection-2d --timers
+   ```
+   OpenMPI peut terminer par un message « abnormal termination » connu lorsqu’Extrae intercepte `MPI_Finalize`; la trace est néanmoins complète.
+5. Convertir les fichiers MPIT en trace Paraver (génération automatique si `mpimpi2prv` est disponible dans le `PATH`) ; dans notre run, Extrae a directement produit `finite-volume-advection-2d.{prv,pcf,row}` dans `~/sbstndbs/samurai/build_extrae/demos/FiniteVolume`.
+
+### À propos des compteurs matériels
+
+Le template `extrae.xml` active plusieurs compteurs PAPI (ex. `PAPI_TOT_INS`, `PAPI_L1_DCM`). Sur la machine locale ces compteurs ne sont pas fournis par le noyau/perf, Extrae signale donc des erreurs au démarrage mais continue la capture. Pour éviter ces avertissements, remplacer les sections `<hardware-counter>` correspondantes par des compteurs disponibles (`perf list`) ou commenter les blocs `<set>` inutilisables.
+
 ## Nettoyage
 ```bash
 rm -rf extrae_paraver/build
