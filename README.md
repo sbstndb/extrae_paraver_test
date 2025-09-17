@@ -97,6 +97,22 @@ Le dépôt inclut la procédure suivie pour compiler wxParaver 4.9.2 dans `~/pa
    OpenMPI peut terminer par un message « abnormal termination » connu lorsqu’Extrae intercepte `MPI_Finalize`; la trace est néanmoins complète.
 5. Convertir les fichiers MPIT en trace Paraver (génération automatique si `mpimpi2prv` est disponible dans le `PATH`) ; dans notre run, Extrae a directement produit `finite-volume-advection-2d.{prv,pcf,row}` dans `~/sbstndbs/samurai/build_extrae/demos/FiniteVolume`.
 
+### Scripts d’automatisation
+
+Deux scripts bash dans `scripts/` encapsulent ces étapes :
+
+- `configure_samurai_extrae.sh /chemin/samurai [build_dir]` installe Extrae via Spack si besoin, charge les modules requis, configure CMake avec `-DWITH_MPI=ON`, copie le template `extrae.xml` et génère `extrae_env.sh` (build par défaut : `build_extrae`).
+- `run_samurai_extrae.sh [options] -- commande …` charge les mêmes modules, source `extrae_env.sh`, active Extrae (LD_PRELOAD, variables) puis exécute la commande passée. Exemple minimal :
+  ```bash
+  ./scripts/run_samurai_extrae.sh --samurai-root ~/sbstndbs/samurai -- \
+      mpirun -np 4 ~/sbstndbs/samurai/build_extrae/demos/FiniteVolume/finite-volume-advection-2d --timers
+  ```
+  Si le script est lancé depuis le répertoire de build contenant `extrae_env.sh`, les options peuvent être omises :
+  ```bash
+  (cd ~/sbstndbs/samurai/build_extrae && \
+   ../extrae_paraver/scripts/run_samurai_extrae.sh -- mpirun -np 4 demos/FiniteVolume/finite-volume-advection-2d --timers)
+  ```
+
 ### À propos des compteurs matériels
 
 Le template `extrae.xml` active plusieurs compteurs PAPI (ex. `PAPI_TOT_INS`, `PAPI_L1_DCM`). Sur la machine locale ces compteurs ne sont pas fournis par le noyau/perf, Extrae signale donc des erreurs au démarrage mais continue la capture. Pour éviter ces avertissements, remplacer les sections `<hardware-counter>` correspondantes par des compteurs disponibles (`perf list`) ou commenter les blocs `<set>` inutilisables.
